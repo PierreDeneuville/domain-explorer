@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Explorer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #4b5563;
+            --background: #f3f4f6;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--background);
+            color: var(--secondary);
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 1rem;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .generate-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .generate-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .generate-btn:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        .category {
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .category h2 {
+            color: #2563eb;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .project-card {
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .preview-container {
+            position: relative;
+            height: 200px;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(0.95);
+            transform-origin: top center;
+        }
+
+        .preview-error {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            color: #6b7280;
+            font-size: 4rem;
+            gap: 1rem;
+        }
+
+        .card-content {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-url {
+            font-size: 0.9rem;
+            color: #6b7280;
+            word-break: break-all;
+        }
+
+        @media (max-width: 640px) {
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-container {
+                flex-direction: column;
+            }
+        }
+
+        #results {
+            display: grid;
+            gap: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Domain Explorer</h1>
+        </header>
+
+        <div class="search-container">
+            <input type="text" 
+                   id="keywordInput" 
+                   class="search-input" 
+                   placeholder="Enter a keyword (e.g., game, app, tool...)"
+                   onkeyup="event.key === 'Enter' && generateCards()">
+            <button onclick="generateCards()" class="generate-btn" id="generateBtn">
+                <i class="fas fa-wand-magic-sparkles"></i>
+                Generate Cards
+            </button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const platforms = [
+            {
+                name: 'Netlify',
+                icon: 'fa-square',
+                urlPattern: 'https://{keyword}.netlify.app/'
+            },
+            {
+                name: 'Vercel',
+                icon: 'fa-triangle',
+                urlPattern: 'https://{keyword}.vercel.app/'
+            },
+            {
+                name: 'Render',
+                icon: 'fa-server',
+                urlPattern: 'https://{keyword}.onrender.com/'
+            },
+            {
+                name: 'Surge',
+                icon: 'fa-bolt',
+                urlPattern: 'https://{keyword}.surge.sh/'
+            },
+            {
+                name: 'Cloudflare',
+                icon: 'fa-cloud',
+                urlPattern: 'https://{keyword}.pages.dev/'
+            },
+            {
+                name: 'Glitch',
+                icon: 'fa-fish',
+                urlPattern: 'https://{keyword}.glitch.me/'
+            }
+        ];
+
+        const domains = [
+            { ext: 'com', icon: 'fa-globe' },
+            { ext: 'ai', icon: 'fa-robot' },
+            { ext: 'io', icon: 'fa-code' },
+            { ext: 'gg', icon: 'fa-gamepad' },
+            { ext: 'gov', icon: 'fa-landmark' },
+            { ext: 'education', icon: 'fa-graduation-cap' },
+            { ext: 'info', icon: 'fa-info-circle' },
+            { ext: 'xyz', icon: 'fa-cube' },
+            { ext: 'ly', icon: 'fa-link' },
+            { ext: 'site', icon: 'fa-browser' },
+            { ext: 'me', icon: 'fa-user' }
+        ];
+
+        function createProjectCard(url, name, icon) {
+            return `
+                <a href="${url}" class="project-card" target="_blank">
+                    <div class="preview-container">
+                        <iframe 
+                            class="preview-iframe" 
+                            src="${url}"
+                            loading="lazy"
+                            onerror="this.style.display='none'"
+                            onload="this.parentElement.querySelector('.preview-error')?.remove()"
+                        ></iframe>
+                        <div class="preview-error">
+                            <i class="fas ${icon}"></i>
+                            <span>Available at<br>${url}</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <h3 class="card-title">
+                            <i class="fas ${icon}"></i>
+                            ${name}
+                        </h3>
+                        <div class="card-url">${url}</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        function createCategorySection(title, icon, cards) {
+            return `
+                <div class="category">
+                    <h2><i class="fas ${icon}"></i> ${title}</h2>
+                    <div class="projects-grid">
+                        ${cards.join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateCards() {
+            const keyword = document.getElementById('keywordInput').value.trim().toLowerCase();
+            if (!keyword) return;
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+
+            // Generate Platform Cards
+            const platformCards = platforms.map(platform => {
+                const url = platform.urlPattern.replace('{keyword}', keyword);
+                return createProjectCard(url, platform.name, platform.icon);
+            });
+            results.innerHTML += createCategorySection('Hosting Platforms', 'fa-server', platformCards);
+
+            // Generate Domain Cards
+            const domainCards = domains.map(domain => {
+                const url = `https://${keyword}.${domain.ext}/`;
+                return createProjectCard(url, `.${domain.ext}`, domain.icon);
+            });
+            results.innerHTML += createCategorySection('Domain Extensions', 'fa-globe', domainCards);
+
+            btn.disabled = false;
+        }
+
+        // Initialize with example if needed
+        // generateCards('game');
+    </script>
+</body>
+</html>
